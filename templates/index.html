@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sabrika Brand Manager</title>
+    <link rel="stylesheet" href="/static/style.css?v=2">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🍽️ Sabrika Brand Manager</h1>
+            <p>Instagram Content Generator for Restaurants</p>
+            <div id="version-banner" style="font-size:0.75rem;color:var(--gray);margin-bottom:10px;">Checking version...</div>
+            <nav>
+                <a href="/" class="active">Create</a>
+                <a href="/gallery">Gallery</a>
+            </nav>
+        </header>
+
+        <main>
+            <!-- Restaurant Management -->
+            <section class="card">
+                <h2>Restaurants</h2>
+                <div id="restaurant-list"></div>
+                <button class="btn btn-secondary" onclick="showAddRestaurant()">+ Add Restaurant</button>
+                
+                <div id="add-restaurant-form" class="hidden">
+                    <h3>Add New Restaurant</h3>
+                    <div class="form-grid">
+                        <input type="text" id="r-name" placeholder="Restaurant Name *" required>
+                        <input type="text" id="r-cuisine" placeholder="Cuisine (e.g., Indian, Italian)">
+                        <input type="text" id="r-location" placeholder="Location (e.g., Almaty, Kazakhstan)">
+                        <input type="text" id="r-tagline" placeholder="Tagline (e.g., Authentic flavors since 2010)">
+                        <input type="text" id="r-phone" placeholder="Phone Number">
+                        <input type="text" id="r-instagram" placeholder="Instagram Handle (without @)">
+                        <div class="color-row">
+                            <label>Brand Color 1: <input type="color" id="r-color1" value="#FF6B35"></label>
+                            <label>Brand Color 2: <input type="color" id="r-color2" value="#F7931E"></label>
+                        </div>
+                        <div class="logo-upload-row" style="grid-column: 1 / -1;">
+                            <label>Restaurant Logo:</label>
+                            <input type="file" id="r-logo" accept="image/png,image/jpg,image/jpeg,image/gif,image/webp,image/svg">
+                            <div id="logo-preview" class="hidden">
+                                <img id="logo-preview-img" src="" alt="Logo preview" style="max-width: 80px; max-height: 80px; border-radius: 8px; margin-top: 8px;">
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="addRestaurant()">Save Restaurant</button>
+                    <button class="btn btn-text" onclick="hideAddRestaurant()">Cancel</button>
+                </div>
+            </section>
+
+            <!-- Tab Switcher -->
+            <div class="tab-bar">
+                <button class="btn tab-btn active" onclick="showImageTab()">📸 Images</button>
+                <button class="btn tab-btn" onclick="showReelTab()">🎬 Reels</button>
+            </div>
+
+            <!-- Image Generator -->
+            <section id="image-tab" class="card tab-content">
+                <h2>Generate Images</h2>
+                <div class="form-group">
+                    <label>Select Restaurant</label>
+                    <select id="gen-restaurant">
+                        <option value="">-- Choose a restaurant --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Content Type</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="gen-type" value="story" checked> Instagram Story (1080×1920)</label>
+                        <label><input type="radio" name="gen-type" value="post"> Instagram Post (1080×1080)</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Event / Headline *</label>
+                    <input type="text" id="gen-event" placeholder="e.g., Weekend Special, New Menu Launch, Live Music Night">
+                </div>
+
+                <div class="form-group">
+                    <label>Context / Description *</label>
+                    <textarea id="gen-context" rows="3" placeholder="e.g., Authentic Hyderabadi dum biryani slow-cooked in traditional handi for 6 hours. Served with raita and salan."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Offer (optional)</label>
+                    <input type="text" id="gen-offer" placeholder="e.g., 20% off on family packs, Buy 1 Get 1 Free">
+                </div>
+
+                <button class="btn btn-primary btn-large" onclick="generateContent()">
+                    ✨ Generate Image
+                </button>
+
+                <div id="preview-area" class="hidden">
+                    <h3>Preview</h3>
+                    <img id="preview-image" src="" alt="Generated content">
+                    <div class="preview-actions">
+                        <a id="download-link" href="#" download class="btn btn-primary">Download Image</a>
+                        <button class="btn btn-secondary" onclick="generateContent()">Regenerate</button>
+                    </div>
+                </div>
+
+                <div id="loading" class="hidden">
+                    <div class="spinner"></div>
+                    <p>Generating your branded content...</p>
+                </div>
+            </section>
+
+            <!-- Reel Generator -->
+            <section id="reel-tab" class="card tab-content hidden">
+                <h2>🎬 Generate Reel</h2>
+                <p style="color:var(--gray);margin-bottom:16px;">
+                    Upload raw clips → Auto-detect best moments → Add branded overlays → Get a strategic reel
+                </p>
+
+                <div class="form-group">
+                    <label>Select Restaurant</label>
+                    <select id="reel-restaurant">
+                        <option value="">-- Choose a restaurant --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Upload Raw Clips (MP4, MOV)</label>
+                    <input type="file" id="clip-upload" accept="video/*" multiple onchange="uploadClip()">
+                    <div id="clip-list" style="margin-top:10px;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Hook Text *</label>
+                    <input type="text" id="reel-hook" placeholder="e.g., This biryani changed my life 🔥">
+                </div>
+
+                <div class="form-group">
+                    <label>Offer (optional)</label>
+                    <input type="text" id="reel-offer" placeholder="e.g., 20% OFF Family Pack">
+                </div>
+
+                <div class="form-group">
+                    <label>Target Duration</label>
+                    <select id="reel-duration">
+                        <option value="15">15 seconds (Quick)</option>
+                        <option value="30" selected>30 seconds (Standard)</option>
+                        <option value="60">60 seconds (Long)</option>
+                        <option value="90">90 seconds (Max)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Engine</label>
+                    <select id="reel-engine">
+                        <option value="v1">V1 — Classic (subtitles + overlays)</option>
+                        <option value="v2" selected>V2 — AI Frame Analysis (no subtitles, soul-driven)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="v2-template-group">
+                    <label>Template / Mood</label>
+                    <select id="reel-template">
+                        <option value="auto" selected>🎯 Auto-detect from clips</option>
+                        <option value="heritage">🏛️ Heritage — Slow, majestic, traditional</option>
+                        <option value="energetic">⚡ Energetic — Fast, punchy, exciting</option>
+                        <option value="warm">🔥 Warm — Balanced, homey, inviting</option>
+                    </select>
+                    <p style="font-size:0.8rem;color:var(--gray);margin-top:4px;">
+                        V2 analyzes every frame with YOLOv8, maps objects to The Pakwaan's soul, 
+                        and assembles a 6-act narrative: Hook → Promise → Process → Payoff → Social → CTA
+                    </p>
+                </div>
+
+                <div class="form-group" id="v1-subs-group">
+                    <label><input type="checkbox" id="reel-subs" checked> Auto-generate subtitles (faster-whisper)</label>
+                </div>
+
+                <button class="btn btn-primary btn-large" onclick="generateReel()">
+                    🎬 Generate Reel
+                </button>
+
+                <div id="reel-loading" class="hidden">
+                    <div class="spinner"></div>
+                    <p id="reel-loading-text">Assembling your strategic reel...</p>
+                    <p style="font-size:0.85rem;color:var(--gray);" id="reel-loading-pipeline">
+                        Pipeline: YOLOv8 frame analysis → Domain mapping → Narrative assembly → FFmpeg color grade
+                    </p>
+                </div>
+
+                <div id="reel-preview" class="hidden">
+                    <h3>Reel Preview</h3>
+                    <video id="reel-video" controls style="max-width:100%;max-height:600px;border-radius:12px;box-shadow:var(--shadow-lg);">
+                        <source src="" type="video/mp4">
+                    </video>
+                    <img id="reel-thumb" src="" class="hidden" style="max-width:100%;margin-top:12px;border-radius:12px;">
+                    <p id="reel-meta" style="margin-top:10px;color:var(--gray);"></p>
+                    <div class="preview-actions">
+                        <a id="reel-download" href="#" download class="btn btn-primary">Download Reel</a>
+                        <button class="btn btn-secondary" onclick="generateReel()">Regenerate</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Built with ❤️ for Sabrika | GVK Medical College, Almaty</p>
+        </footer>
+    </div>
+
+    <script>
+        let restaurants = [];
+        let uploadedClips = [];
+
+        async function loadRestaurants() {
+            try {
+                const res = await fetch('/api/restaurants');
+                if (!res.ok) throw new Error('Failed to load restaurants');
+                restaurants = await res.json();
+                renderRestaurants();
+                populateSelect();
+                populateReelSelect();
+            } catch (err) {
+                document.getElementById('restaurant-list').innerHTML =
+                    '<p class="empty" style="color:#ff6b35">⚠️ Error loading restaurants: ' + err.message + '</p>';
+                console.error('loadRestaurants error:', err);
+            }
+        }
+
+        function populateReelSelect() {
+            const select = document.getElementById('reel-restaurant');
+            if (!select) return;
+            select.innerHTML = '<option value="">-- Choose a restaurant --</option>' +
+                restaurants.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+            // Auto-select The Pakwaan (id=1) if it exists
+            const pakwaan = restaurants.find(r => r.id === 1);
+            if (pakwaan) select.value = '1';
+        }
+
+        function showReelTab() {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('reel-tab').classList.remove('hidden');
+            event.target.classList.add('active');
+        }
+
+        function showImageTab() {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('image-tab').classList.remove('hidden');
+            event.target.classList.add('active');
+        }
+
+        async function uploadClip() {
+            const input = document.getElementById('clip-upload');
+            const files = input.files;
+            if (!files.length) return;
+
+            const container = document.getElementById('clip-list');
+            for (const file of files) {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const res = await fetch('/api/upload', {method: 'POST', body: formData});
+                const data = await res.json();
+
+                if (res.ok) {
+                    uploadedClips.push(data.url);
+                    const div = document.createElement('div');
+                    div.className = 'clip-item';
+                    div.innerHTML = `<span>🎬 ${file.name}</span> <button class="btn btn-small btn-danger" onclick="removeClip('${data.url}', this)">×</button>`;
+                    container.appendChild(div);
+                } else {
+                    alert('Upload failed: ' + data.error);
+                }
+            }
+            input.value = '';
+        }
+
+        function removeClip(url, btn) {
+            uploadedClips = uploadedClips.filter(u => u !== url);
+            btn.parentElement.remove();
+        }
+
+        // Toggle V1/V2 UI elements
+        document.getElementById('reel-engine').addEventListener('change', function() {
+            const isV2 = this.value === 'v2';
+            document.getElementById('v2-template-group').style.display = isV2 ? 'block' : 'none';
+            document.getElementById('v1-subs-group').style.display = isV2 ? 'none' : 'block';
+            document.getElementById('reel-loading-pipeline').textContent = isV2 
+                ? 'Pipeline: YOLOv8 frame analysis → Domain mapping → Narrative assembly → FFmpeg color grade'
+                : 'Pipeline: PySceneDetect → faster-whisper → FFmpeg → PIL overlays';
+        });
+        // Initialize UI state
+        document.getElementById('reel-engine').dispatchEvent(new Event('change'));
+
+        async function generateReel() {
+            const restaurantId = document.getElementById('reel-restaurant').value;
+            const hook = document.getElementById('reel-hook').value;
+            const offer = document.getElementById('reel-offer').value;
+            const duration = document.getElementById('reel-duration').value;
+            const engine = document.getElementById('reel-engine').value;
+            const template = document.getElementById('reel-template').value;
+            const subtitles = document.getElementById('reel-subs').checked;
+
+            if (!restaurantId) { alert('Select a restaurant'); return; }
+            if (!uploadedClips.length) { alert('Upload at least one clip'); return; }
+            if (engine === 'v1' && !hook) { alert('Hook text is required for V1'); return; }
+
+            document.getElementById('reel-loading').classList.remove('hidden');
+            document.getElementById('reel-preview').classList.add('hidden');
+            document.getElementById('reel-loading-text').textContent = 
+                engine === 'v2' 
+                    ? 'Analyzing every frame with YOLOv8, mapping to The Pakwaan\'s soul...'
+                    : 'Assembling your strategic reel...';
+
+            try {
+                const endpoint = engine === 'v2' ? '/api/reels/v2' : '/api/reels';
+                const payload = engine === 'v2' ? {
+                    restaurant_id: parseInt(restaurantId),
+                    clips: uploadedClips,
+                    template: template,
+                    duration: parseFloat(duration),
+                } : {
+                    restaurant_id: parseInt(restaurantId),
+                    clips: uploadedClips,
+                    hook: hook,
+                    offer: offer,
+                    duration: parseFloat(duration),
+                    subtitles: subtitles
+                };
+
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                document.getElementById('reel-loading').classList.add('hidden');
+
+                if (res.ok) {
+                    document.getElementById('reel-preview').classList.remove('hidden');
+                    document.getElementById('reel-video').src = data.reel_url;
+                    document.getElementById('reel-video').load();
+                    document.getElementById('reel-download').href = data.reel_url;
+                    document.getElementById('reel-download').download = data.filename || 'reel.mp4';
+                    if (data.thumbnail_url) {
+                        document.getElementById('reel-thumb').src = data.thumbnail_url;
+                        document.getElementById('reel-thumb').classList.remove('hidden');
+                    } else {
+                        document.getElementById('reel-thumb').classList.add('hidden');
+                    }
+                    const metaParts = [`<strong>${data.restaurant}</strong>`, `${data.duration}s`];
+                    if (data.engine_version) metaParts.push(`Engine: ${data.engine_version}`);
+                    if (data.template_used) metaParts.push(`Template: ${data.template_used}`);
+                    if (data.has_subtitles) metaParts.push('✓ Subtitles');
+                    document.getElementById('reel-meta').innerHTML = metaParts.join(' — ');
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                    if (data.traceback) console.error('Server traceback:', data.traceback);
+                }
+            } catch (err) {
+                document.getElementById('reel-loading').classList.add('hidden');
+                alert('Error generating reel: ' + err.message);
+            }
+        }
+
+        function renderRestaurants() {
+            const container = document.getElementById('restaurant-list');
+            if (restaurants.length === 0) {
+                container.innerHTML = '<p class="empty">No restaurants added yet. Add one to get started!</p>';
+                return;
+            }
+            container.innerHTML = restaurants.map(r => `
+                <div class="restaurant-item">
+                    ${r.logo ? `<img src="${r.logo}" class="restaurant-logo-thumb" alt="${r.name} logo">` : '<div class="restaurant-logo-placeholder">🍽️</div>'}
+                    <div class="restaurant-info">
+                        <strong>${r.name}</strong>
+                        <span class="cuisine">${r.cuisine || 'Restaurant'}</span>
+                        <span class="location">📍 ${r.location || 'No location'}</span>
+                    </div>
+                    <div class="restaurant-colors">
+                        <span class="color-dot" style="background:${r.color1}"></span>
+                        <span class="color-dot" style="background:${r.color2}"></span>
+                    </div>
+                    <button class="btn btn-small btn-danger" onclick="deleteRestaurant(${r.id})">🗑</button>
+                </div>
+            `).join('');
+        }
+
+        function populateSelect() {
+            const select = document.getElementById('gen-restaurant');
+            select.innerHTML = '<option value="">-- Choose a restaurant --</option>' +
+                restaurants.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+            // Auto-select The Pakwaan (id=1) if it exists
+            const pakwaan = restaurants.find(r => r.id === 1);
+            if (pakwaan) select.value = '1';
+        }
+
+        function showAddRestaurant() {
+            document.getElementById('add-restaurant-form').classList.remove('hidden');
+        }
+
+        function hideAddRestaurant() {
+            document.getElementById('add-restaurant-form').classList.add('hidden');
+        }
+        
+        // Logo preview
+        document.addEventListener('DOMContentLoaded', function() {
+            const logoInput = document.getElementById('r-logo');
+            if (logoInput) {
+                logoInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            document.getElementById('logo-preview-img').src = e.target.result;
+                            document.getElementById('logo-preview').classList.remove('hidden');
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+        });
+
+        async function addRestaurant() {
+            const name = document.getElementById('r-name').value;
+            if (!name) {
+                alert('Restaurant name is required');
+                return;
+            }
+            
+            // Upload logo first if selected
+            let logoUrl = "";
+            const logoFile = document.getElementById('r-logo').files[0];
+            if (logoFile) {
+                const formData = new FormData();
+                formData.append('file', logoFile);
+                const uploadRes = await fetch('/api/upload-logo', {
+                    method: 'POST',
+                    body: formData
+                });
+                const uploadData = await uploadRes.json();
+                if (uploadData.error) {
+                    alert('Logo upload failed: ' + uploadData.error);
+                    return;
+                }
+                logoUrl = uploadData.url;
+            }
+            
+            const data = {
+                name: name,
+                cuisine: document.getElementById('r-cuisine').value,
+                location: document.getElementById('r-location').value,
+                tagline: document.getElementById('r-tagline').value,
+                color1: document.getElementById('r-color1').value,
+                color2: document.getElementById('r-color2').value,
+                phone: document.getElementById('r-phone').value,
+                instagram: document.getElementById('r-instagram').value,
+                logo: logoUrl
+            };
+
+            await fetch('/api/restaurants', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+
+            hideAddRestaurant();
+            loadRestaurants();
+            
+            // Clear form
+            document.getElementById('r-name').value = '';
+            document.getElementById('r-cuisine').value = '';
+            document.getElementById('r-location').value = '';
+            document.getElementById('r-tagline').value = '';
+            document.getElementById('r-phone').value = '';
+            document.getElementById('r-instagram').value = '';
+            document.getElementById('r-logo').value = '';
+            document.getElementById('logo-preview').classList.add('hidden');
+            document.getElementById('logo-preview-img').src = '';
+        }
+
+        async function deleteRestaurant(id) {
+            if (!confirm('Delete this restaurant?')) return;
+            await fetch(`/api/restaurants/${id}`, {method: 'DELETE'});
+            loadRestaurants();
+        }
+
+        async function generateContent() {
+            const restaurantId = document.getElementById('gen-restaurant').value;
+            const type = document.querySelector('input[name="gen-type"]:checked').value;
+            const event = document.getElementById('gen-event').value;
+            const context = document.getElementById('gen-context').value;
+            const offer = document.getElementById('gen-offer').value;
+
+            if (!restaurantId) {
+                alert('Please select a restaurant');
+                return;
+            }
+            if (!event || !context) {
+                alert('Event and Context are required');
+                return;
+            }
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('preview-area').classList.add('hidden');
+
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        restaurant_id: parseInt(restaurantId),
+                        type: type,
+                        event: event,
+                        context: context,
+                        offer: offer
+                    })
+                });
+
+                const data = await res.json();
+                
+                // Check for server-reported errors
+                if (data.error) {
+                    document.getElementById('loading').classList.add('hidden');
+                    console.error('Server error:', data.traceback || data.error);
+                    alert('Server Error: ' + data.error + '\n\nCheck browser console for full traceback.');
+                    return;
+                }
+                
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('preview-area').classList.remove('hidden');
+                document.getElementById('preview-image').src = data.url;
+                document.getElementById('download-link').href = data.url;
+                document.getElementById('download-link').download = data.filename;
+            } catch (err) {
+                document.getElementById('loading').classList.add('hidden');
+                alert('Network/JSON Error: ' + err.message);
+            }
+        }
+
+        // Load on startup
+        loadRestaurants();
+        
+        // Version check - proves which code is running
+        async function checkVersion() {
+            try {
+                const res = await fetch('/api/health?_=' + Date.now());
+                const data = await res.json();
+                const banner = document.getElementById('version-banner');
+                if (data.code_hash) {
+                    banner.innerHTML = `✅ Code: <code>${data.code_hash}</code> | Server: ${data.server_time}`;
+                    banner.style.color = '#28a745';
+                }
+            } catch (e) {
+                document.getElementById('version-banner').textContent = '⚠️ Could not check version';
+            }
+        }
+        checkVersion();
+    </script>
+</body>
+</html>
