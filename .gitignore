@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Model weights
+yolov8n.pt
+*.pt
+*.pth
+*.onnx
+
+# Logs
+*.log
+server_*.log
+
+# Generated content (keep dirs, ignore files)
+static/generated/*
+static/reels/*
+static/thumbnails/*
+static/uploads/*
+!static/generated/.gitkeep
+!static/reels/.gitkeep
+!static/thumbnails/.gitkeep
+!static/uploads/.gitkeep
+
+# IDE
+.claude/
+.claude-flow/
+.mcp.json
+.idea/
+.vscode/
+
+# OS
+.DS_Store
