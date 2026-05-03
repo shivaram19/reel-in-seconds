@@ -1,0 +1,19 @@
+[Unit]
+Description=Sabrika Brand Manager — Dev Environment
+After=network.target
+
+[Service]
+Type=simple
+User=sabrika
+Group=sabrika
+WorkingDirectory=/home/sabrika/sabrika-brand-manager-dev
+Environment=FLASK_PORT=5001
+ExecStart=/home/sabrika/sabrika-brand-manager-dev/venv-dev/bin/python3 /home/sabrika/sabrika-brand-manager-dev/app.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sabrika-dev
+
+[Install]
+WantedBy=multi-user.target

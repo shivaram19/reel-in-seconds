@@ -1,0 +1,19 @@
+[Unit]
+Description=Sabrika Brand Manager — Staging Environment
+After=network.target
+
+[Service]
+Type=simple
+User=sabrika
+Group=sabrika
+WorkingDirectory=/home/sabrika/sabrika-brand-manager-staging
+Environment=FLASK_PORT=5002
+ExecStart=/home/sabrika/sabrika-brand-manager-staging/venv-staging/bin/python3 /home/sabrika/sabrika-brand-manager-staging/app.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sabrika-staging
+
+[Install]
+WantedBy=multi-user.target
