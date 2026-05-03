@@ -17,8 +17,12 @@ This is a **research-driven, citation-backed engineering project**. Every archit
 | **Cloud Provider** | Microsoft Azure |
 | **VM Name** | `sabrika-app-vm` |
 | **Public IP** | `20.125.62.241` |
-| **Port** | `5000` |
-| **URL** | `http://20.125.62.241:5000` |
+| **HTTP Port** | `80` → redirects to `443` |
+| **HTTPS Port** | `443` |
+| **App Port** | `5000` (localhost-only, nginx reverse proxy) |
+| **URL** | `https://20.125.62.241` |
+| **SSL** | Self-signed certificate (`/etc/nginx/ssl/sabrika.crt`) |
+| **Reverse Proxy** | nginx (`/etc/nginx/sites-enabled/sabrika`) |
 | **Resource Group** | `sabrika-rg` |
 | **Region** | `westus2` |
 | **OS** | Ubuntu (Linux) |
@@ -26,13 +30,15 @@ This is a **research-driven, citation-backed engineering project**. Every archit
 | **SSH Key** | `~/.ssh/id_rsa` |
 | **App Directory** | `/home/sabrika/sabrika-brand-manager` |
 | **Log File** | `/home/sabrika/flask.log` |
-| **Process** | `python3 app.py` (Flask dev server via nohup) |
+| **Process** | `python3 app.py` (Flask dev server, bound to `127.0.0.1:5000`) |
+| **Monitor** | `sabrika-monitor.service` (systemd, self-healing daemon) |
+| **Monitor State** | `/home/sabrika/.monitor/state.json` |
 
 ### Quick Operations
 
 ```bash
-# Check health
-curl http://20.125.62.241:5000/api/health
+# Check health (HTTPS, through nginx)
+curl -sk https://20.125.62.241/api/health
 
 # SSH into VM
 ssh -i ~/.ssh/id_rsa sabrika@20.125.62.241
@@ -40,12 +46,25 @@ ssh -i ~/.ssh/id_rsa sabrika@20.125.62.241
 # View live logs
 ssh -i ~/.ssh/id_rsa sabrika@20.125.62.241 "tail -f ~/flask.log"
 
+# View monitor logs
+ssh -i ~/.ssh/id_rsa sabrika@20.125.62.241 "sudo journalctl -u sabrika-monitor -f"
+
+# View monitor state
+ssh -i ~/.ssh/id_rsa sabrika@20.125.62.241 "cat ~/.monitor/state.json | python3 -m json.tool"
+
 # Restart app (via Azure run-command to avoid SSH session kill)
 az vm run-command invoke \
   --resource-group sabrika-rg \
   --name sabrika-app-vm \
   --command-id RunShellScript \
   --scripts 'pkill -f "python3 app.py"; sleep 2; su - sabrika -c "cd ~/sabrika-brand-manager && . venv/bin/activate && nohup python3 app.py > ~/flask.log 2>&1 &"; sleep 3; curl -s http://localhost:5000/api/health'
+
+# Check all services
+az vm run-command invoke \
+  --resource-group sabrika-rg \
+  --name sabrika-app-vm \
+  --command-id RunShellScript \
+  --scripts 'systemctl status nginx sabrika-monitor --no-pager; echo "---"; curl -sk https://127.0.0.1/api/health -H "Host: 20.125.62.241"'
 ```
 
 ### Azure Resources
@@ -66,7 +85,10 @@ Resource Group: sabrika-rg (eastus + westus2)
 - **OpenCV + YOLOv8** (Python packages) for frame analysis
 - **NO Docker** on the VM (Docker not installed)
 - **NO Container Apps / AKS / Web Apps** — bare VM deployment
-- **NO reverse proxy** (nginx, Apache) — Flask dev server exposed directly
+- **nginx** reverse proxy (port 80 → 443 → localhost:5000)
+- **Self-signed SSL** certificate (TLSv1.2/1.3)
+- **Self-healing monitor** (`sabrika-monitor.service`) — probes `/api/health` every 30s, auto-restarts Flask on failure with exponential backoff
+- **Flask bound to localhost** (`127.0.0.1:5000`) — no direct external access
 
 ---
 
@@ -78,16 +100,18 @@ Resource Group: sabrika-rg (eastus + westus2)
 │                         20.125.62.241:5000                          │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────┐  │
-│  │   Flask     │───→│  V1 Engine  │    │  V2 Frame Engine        │  │
-│  │   Server    │    │  (PyScene   │    │  (YOLOv8 + OpenCV +     │  │
-│  │             │    │   Detect +  │    │   Domain Map + Narrative│  │
-│  │  /api/...   │    │   FFmpeg)   │    │   Assembly + FFmpeg)    │  │
-│  │  Frontend   │    │             │    │                         │  │
-│  │  (HTML/JS)  │    │  /api/reels │    │  /api/reels/v2          │  │
-│  └─────────────┘    └─────────────┘    └─────────────────────────┘  │
-│         │                    │                      │                │
-│         └────────────────────┴──────────────────────┘                │
+│  ┌─────────┐      ┌─────────┐     ┌─────────────┐  ┌─────────────┐  │
+│  │  nginx  │─────→│  Flask  │────→│  V1 Engine  │  │  V2 Frame   │  │
+│  │  :443   │      │  :5000  │     │  (PyScene   │  │  Engine     │  │
+│  │  (SSL)  │      │ (local) │     │   Detect +  │  │  (YOLOv8 +  │  │
+│  └─────────┘      └─────────┘     │   FFmpeg)   │  │  OpenCV...) │  │
+│       ↑                           │             │  │             │  │
+│       │                           │  /api/reels │  │ /api/reels/ │  │
+│       │                           │             │  │     v2      │  │
+│  ┌────┴────┐                      └─────────────┘  └─────────────┘  │
+│  │ Monitor │                                                           │
+│  │(systemd)│                                                           │
+│  └─────────┘                                                           │
 │                              │                                       │
 │                    ┌─────────┴─────────┐                             │
 │                    │   FFmpeg (system)  │                             │
@@ -136,9 +160,11 @@ docs/
 └── debugging/         # Root-cause analyses of production issues
 
 scripts/
-├── deploy.sh          # One-command deployment to Azure VM
-├── health-check.sh    # VM and application health monitoring
-└── logs.sh            # Quick log access and tailing
+├── deploy.sh                   # One-command deployment to Azure VM
+├── health-check.sh             # VM and application health monitoring
+├── logs.sh                     # Quick log access and tailing
+├── monitor.py                  # Self-healing monitor daemon
+└── sabrika-monitor.service     # systemd unit for monitor
 ```
 
 ---
@@ -200,6 +226,7 @@ When in doubt:
 
 ---
 
-*Document version: 1.0*  
+*Document version: 1.1*  
 *Established: 2026-05-02*  
-*Deployment verified: sabrika-app-vm @ 20.125.62.241:5000*
+*Updated: 2026-05-03 (nginx + SSL + self-healing monitor)*  
+*Deployment verified: sabrika-app-vm @ https://20.125.62.241*

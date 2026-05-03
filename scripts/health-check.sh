@@ -29,8 +29,8 @@ set -euo pipefail
 
 # ── CONFIGURATION ──
 VM_IP="20.125.62.241"
-HEALTH_URL="http://${VM_IP}:5000/api/health"
-RESTAURANTS_URL="http://${VM_IP}:5000/api/restaurants"
+HEALTH_URL="https://${VM_IP}/api/health"
+RESTAURANTS_URL="https://${VM_IP}/api/restaurants"
 SSH_KEY="${HOME}/.ssh/id_rsa"
 VM_USER="sabrika"
 WATCH_INTERVAL=30

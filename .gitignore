@@ -37,3 +37,7 @@ static/uploads/*
 
 # OS
 .DS_Store
+
+# Agent/session artifacts
+CLAUDE.md
+static/screenshot_debug*.png

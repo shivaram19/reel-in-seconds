@@ -1,0 +1,19 @@
+[Unit]
+Description=Sabrika Brand Manager — Self-Healing Monitor
+Documentation=https://github.com/shivaram19/reel-in-seconds/blob/main/docs/adrs/ADR-005-self-healing-monitor.md
+After=network.target
+
+[Service]
+Type=simple
+User=sabrika
+Group=sabrika
+WorkingDirectory=/home/sabrika/sabrika-brand-manager
+ExecStart=/home/sabrika/sabrika-brand-manager/venv/bin/python3 /home/sabrika/sabrika-brand-manager/scripts/monitor.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sabrika-monitor
+
+[Install]
+WantedBy=multi-user.target

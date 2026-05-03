@@ -119,7 +119,7 @@ log_info "Application restarted."
 # ── STEP 4: HEALTH CHECK ──
 log_info "Running health check..."
 
-HEALTH=$(curl -s --max-time 10 "http://${VM_IP}:5000/api/health" 2>/dev/null || echo "FAILED")
+HEALTH=$(curl -sk --max-time 10 "https://${VM_IP}/api/health" 2>/dev/null || echo "FAILED")
 
 if echo "$HEALTH" | grep -q '"status": "ok"'; then
     CODE_HASH=$(echo "$HEALTH" | grep -o '"code_hash": "[^"]*"' | cut -d'"' -f4)
@@ -140,9 +140,9 @@ for arg in "$@"; do
             ;;
         --check)
             log_info "Full API check..."
-            curl -s "http://${VM_IP}:5000/api/restaurants" | python3 -m json.tool | head -20
+            curl -sk "https://${VM_IP}/api/restaurants" | python3 -m json.tool | head -20
             ;;
     esac
 done
 
-log_info "Deployment complete. App live at: http://${VM_IP}:5000"
+log_info "Deployment complete. App live at: https://${VM_IP}/"
