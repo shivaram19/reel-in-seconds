@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "The Pakwaan",
+    "cuisine": "Indian (Rajasthani, South Indian, Gujarati, Jain)",
+    "location": "Almaty, Kazakhstan",
+    "tagline": "A Taste of India in Almaty",
+    "color1": "#D4A574",
+    "color2": "#8B4513",
+    "phone": "",
+    "instagram": "thepakwaan",
+    "logo": ""
+  },
+  {
+    "id": 2,
+    "name": "Test",
+    "cuisine": "X",
+    "location": "Y",
+    "tagline": "Z",
+    "color1": "#FF0000",
+    "color2": "#00FF00",
+    "phone": "",
+    "instagram": "",
+    "logo": ""
+  }
+]
