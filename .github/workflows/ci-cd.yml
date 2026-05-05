@@ -9,6 +9,12 @@
 #   staging → staging (port 5002) — auto-deploy on push
 #   main    → production (port 5000) — requires manual approval
 #
+# Deployment Method: Azure CLI run-command invoke
+#   - No SSH keys needed
+#   - Works through Azure management plane
+#   - VM pulls latest code as zip from GitHub public API
+#   - Same method used in manual deploys (proven reliable)
+#
 # Research basis:
 #   - Humble & Farley (2010). Continuous Delivery. Addison-Wesley.
 #   - NIST SP 800-207: Zero Trust Architecture.
@@ -25,8 +31,9 @@ on:
 
 env:
   PYTHON_VERSION: "3.10"
+  AZURE_RG: sabrika-rg
+  AZURE_VM: sabrika-app-vm
   AZURE_IP: 20.125.62.241
-  AZURE_USER: sabrika
 
 jobs:
   # ── STAGE 1: TEST ──
@@ -97,28 +104,52 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.AZURE_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ env.AZURE_IP }} >> ~/.ssh/known_hosts
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Sync code to dev environment
+      - name: Deploy to dev via Azure run-command
         run: |
-          rsync -avz --delete \
-            --exclude="__pycache__" --exclude="*.pyc" --exclude="venv*" \
-            --exclude=".git" --exclude="static/generated/*" \
-            --exclude="static/reels/*" --exclude="*.log" \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
-            ./ \
-            ${{ env.AZURE_USER }}@${{ env.AZURE_IP }}:/home/sabrika/sabrika-brand-manager-dev/
-
-      - name: Restart dev server
-        run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
-            ${{ env.AZURE_USER }}@${{ env.AZURE_IP }} \
-            "pkill -f 'python3 app.py.*5001' 2>/dev/null; sleep 2; cd /home/sabrika/sabrika-brand-manager-dev && . venv-dev/bin/activate && FLASK_PORT=5001 nohup python3 app.py > ~/flask-dev.log 2>&1 & sleep 3; curl -s --max-time 10 http://127.0.0.1:5001/api/health"
+          az vm run-command invoke \
+            --resource-group ${{ env.AZURE_RG }} \
+            --name ${{ env.AZURE_VM }} \
+            --command-id RunShellScript \
+            --scripts '
+              set -e
+              BRANCH="dev"
+              PORT="5001"
+              DIR="/home/sabrika/sabrika-brand-manager-dev"
+              VENV="venv-dev"
+              
+              echo "--- DEPLOYING ${BRANCH} ---"
+              
+              # Download latest code from GitHub
+              curl -sL "https://github.com/shivaram19/reel-in-seconds/archive/refs/heads/${BRANCH}.zip" -o /tmp/${BRANCH}.zip
+              unzip -q -o /tmp/${BRANCH}.zip -d /tmp/
+              rm -f /tmp/${BRANCH}.zip
+              
+              # Sync code (preserve venv and logs)
+              rsync -a --exclude="venv*" --exclude="*.log" --exclude="__pycache__" --exclude=".git" \
+                /tmp/reel-in-seconds-${BRANCH}/ ${DIR}/
+              rm -rf /tmp/reel-in-seconds-${BRANCH}
+              chown -R sabrika:sabrika ${DIR}
+              
+              # Restart dev server
+              pkill -f "python3 app.py.*${PORT}" 2>/dev/null || true
+              sleep 2
+              su - sabrika -c "cd ${DIR} && . ${VENV}/bin/activate && FLASK_PORT=${PORT} nohup python3 app.py > ~/flask-${BRANCH}.log 2>&1 &"
+              sleep 3
+              
+              # Health check
+              HEALTH=$(curl -s --max-time 10 http://127.0.0.1:${PORT}/api/health || echo "FAILED")
+              if echo "$HEALTH" | grep -q "\"status\": \"ok\""; then
+                echo "DEV DEPLOY SUCCESS: $HEALTH"
+              else
+                echo "DEV DEPLOY FAILED: $HEALTH"
+                exit 1
+              fi
+            '
 
   # ── STAGE 4: DEPLOY TO STAGING ──
   deploy-staging:
@@ -132,28 +163,48 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.AZURE_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ env.AZURE_IP }} >> ~/.ssh/known_hosts
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Sync code to staging environment
+      - name: Deploy to staging via Azure run-command
         run: |
-          rsync -avz --delete \
-            --exclude="__pycache__" --exclude="*.pyc" --exclude="venv*" \
-            --exclude=".git" --exclude="static/generated/*" \
-            --exclude="static/reels/*" --exclude="*.log" \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
-            ./ \
-            ${{ env.AZURE_USER }}@${{ env.AZURE_IP }}:/home/sabrika/sabrika-brand-manager-staging/
-
-      - name: Restart staging server
-        run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
-            ${{ env.AZURE_USER }}@${{ env.AZURE_IP }} \
-            "pkill -f 'python3 app.py.*5002' 2>/dev/null; sleep 2; cd /home/sabrika/sabrika-brand-manager-staging && . venv-staging/bin/activate && FLASK_PORT=5002 nohup python3 app.py > ~/flask-staging.log 2>&1 & sleep 3; curl -s --max-time 10 http://127.0.0.1:5002/api/health"
+          az vm run-command invoke \
+            --resource-group ${{ env.AZURE_RG }} \
+            --name ${{ env.AZURE_VM }} \
+            --command-id RunShellScript \
+            --scripts '
+              set -e
+              BRANCH="staging"
+              PORT="5002"
+              DIR="/home/sabrika/sabrika-brand-manager-staging"
+              VENV="venv-staging"
+              
+              echo "--- DEPLOYING ${BRANCH} ---"
+              
+              curl -sL "https://github.com/shivaram19/reel-in-seconds/archive/refs/heads/${BRANCH}.zip" -o /tmp/${BRANCH}.zip
+              unzip -q -o /tmp/${BRANCH}.zip -d /tmp/
+              rm -f /tmp/${BRANCH}.zip
+              
+              rsync -a --exclude="venv*" --exclude="*.log" --exclude="__pycache__" --exclude=".git" \
+                /tmp/reel-in-seconds-${BRANCH}/ ${DIR}/
+              rm -rf /tmp/reel-in-seconds-${BRANCH}
+              chown -R sabrika:sabrika ${DIR}
+              
+              pkill -f "python3 app.py.*${PORT}" 2>/dev/null || true
+              sleep 2
+              su - sabrika -c "cd ${DIR} && . ${VENV}/bin/activate && FLASK_PORT=${PORT} nohup python3 app.py > ~/flask-${BRANCH}.log 2>&1 &"
+              sleep 3
+              
+              HEALTH=$(curl -s --max-time 10 http://127.0.0.1:${PORT}/api/health || echo "FAILED")
+              if echo "$HEALTH" | grep -q "\"status\": \"ok\""; then
+                echo "STAGING DEPLOY SUCCESS: $HEALTH"
+              else
+                echo "STAGING DEPLOY FAILED: $HEALTH"
+                exit 1
+              fi
+            '
 
   # ── STAGE 5: DEPLOY TO PRODUCTION ──
   deploy-prod:
@@ -167,25 +218,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.AZURE_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ env.AZURE_IP }} >> ~/.ssh/known_hosts
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Sync code to production
+      - name: Deploy to production via Azure run-command
         run: |
-          rsync -avz --delete \
-            --exclude="__pycache__" --exclude="*.pyc" --exclude="venv" \
-            --exclude=".git" --exclude="static/generated/*" \
-            --exclude="static/reels/*" --exclude="*.log" \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
-            ./ \
-            ${{ env.AZURE_USER }}@${{ env.AZURE_IP }}:/home/sabrika/sabrika-brand-manager/
-
-      - name: Restart production server
-        run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
-            ${{ env.AZURE_USER }}@${{ env.AZURE_IP }} \
-            "pkill -f 'python3 app.py' 2>/dev/null; sleep 2; cd /home/sabrika/sabrika-brand-manager && . venv/bin/activate && nohup python3 app.py > ~/flask.log 2>&1 & sleep 3; curl -sk --max-time 10 https://127.0.0.1/api/health -H 'Host: 20.125.62.241'"
+          az vm run-command invoke \
+            --resource-group ${{ env.AZURE_RG }} \
+            --name ${{ env.AZURE_VM }} \
+            --command-id RunShellScript \
+            --scripts '
+              set -e
+              BRANCH="main"
+              PORT="5000"
+              DIR="/home/sabrika/sabrika-brand-manager"
+              VENV="venv"
+              
+              echo "--- DEPLOYING ${BRANCH} ---"
+              
+              curl -sL "https://github.com/shivaram19/reel-in-seconds/archive/refs/heads/${BRANCH}.zip" -o /tmp/${BRANCH}.zip
+              unzip -q -o /tmp/${BRANCH}.zip -d /tmp/
+              rm -f /tmp/${BRANCH}.zip
+              
+              rsync -a --exclude="venv" --exclude="*.log" --exclude="__pycache__" --exclude=".git" \
+                --exclude="static/generated/*" --exclude="static/reels/*" \
+                /tmp/reel-in-seconds-${BRANCH}/ ${DIR}/
+              rm -rf /tmp/reel-in-seconds-${BRANCH}
+              chown -R sabrika:sabrika ${DIR}
+              
+              pkill -f "python3 app.py" 2>/dev/null || true
+              sleep 2
+              su - sabrika -c "cd ${DIR} && . ${VENV}/bin/activate && nohup python3 app.py > ~/flask.log 2>&1 &"
+              sleep 3
+              
+              HEALTH=$(curl -sk --max-time 10 https://127.0.0.1/api/health -H "Host: 20.125.62.241" || echo "FAILED")
+              if echo "$HEALTH" | grep -q "\"status\": \"ok\""; then
+                echo "PROD DEPLOY SUCCESS"
+              else
+                echo "PROD DEPLOY FAILED: $HEALTH"
+                exit 1
+              fi
+            '
