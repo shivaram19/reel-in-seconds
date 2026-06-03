@@ -4,7 +4,11 @@
 
 **Sabrika Brand Manager** is an Instagram content automation system for restaurant social media management. Built for Sabrika — a final-year MBBS student at GVK Medical College, Almaty, Kazakhstan — who manages Instagram for two restaurants part-time.
 
-This is a **research-driven, citation-backed engineering project**. Every architectural and operational decision is justified by peer-reviewed research, canonical industry sources, or Architecture Decision Records (ADRs).
+**Primary restaurant:** The Pakwaan (Indian — Rajasthani, South Indian, Gujarati, Jain) in Almaty, near GVK Medical College. Audience: Indian medical students craving authentic food.
+
+**This is a research-driven, citation-backed engineering project.** Every architectural and operational decision is justified by peer-reviewed research, canonical industry sources, or Architecture Decision Records (ADRs).
+
+**Corrected scope (post-introspection):** This is a single-tenant tool for one restaurant, not a multi-tenant platform. Scale assumptions were wrong. The D8s_v5 VM is oversized for current needs but provides headroom for experimentation.
 
 ---
 
@@ -92,12 +96,44 @@ Resource Group: sabrika-rg (eastus + westus2)
 
 ---
 
+## Where We're Heading (The Destination)
+
+**Corrected destination (post-introspection):**
+
+> A reliable Instagram content automation tool for The Pakwaan, built with a self-improving development process, that can integrate with the user's existing PicoCloth infrastructure and HIX field subscription.
+
+Three layers, not one:
+
+### Layer 1: The Product (What Users See)
+Instagram content generation for The Pakwaan:
+- Branded Instagram Stories (1080×1920)
+- Branded Instagram Posts (1080×1080)
+- AI-generated reels from raw video clips (V2 frame-analysis engine)
+- Landing page for discoverability and user onboarding
+
+**Scope:** Single-tenant. One restaurant. Not a platform.
+
+### Layer 2: The Process (How We Build)
+Self-improving development ecosystem:
+- Develop on dev-workstation (this VM)
+- Push to GitHub → CI/CD auto-deploys to Azure VM
+- Self-healing monitor ensures 24/7 uptime
+- Mission-aware validation checks semantic health
+- Daily consciousness logs track evolution
+- Test suite prevents regressions
+
+### Layer 3: The Integrations (Where It Lives)
+- **PicoCloth:** Existing distributed infrastructure (`~/.picocloth/`, `node-a` through `node-e`). Not investigated yet. May be the orchestration layer we need.
+- **HIX Field:** External subscription service. Landing page must embed within HIX constraints. Not researched yet.
+
+---
+
 ## Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         AZURE VM (sabrika-app-vm)                    │
-│                         20.125.62.241:5000                          │
+│                         20.125.62.241                               │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  ┌─────────┐      ┌─────────┐     ┌─────────────┐  ┌─────────────┐  │
@@ -126,6 +162,21 @@ Resource Group: sabrika-rg (eastus + westus2)
 
 ---
 
+## Task Registry (What Must Be Done)
+
+| ID | Task | Priority | Layer | Status |
+|----|------|----------|-------|--------|
+| T1 | Research PicoCloth infrastructure | P0 | Integration | Not started |
+| T2 | Research HIX field subscription | P0 | Integration | Not started |
+| T3 | Build landing page for The Pakwaan | P0 | Product | Not started |
+| T4 | Integrate runtime consciousness into monitor | P1 | Process | Not started |
+| T5 | Expand disk or clean up (91% full) | P1 | Infrastructure | Deferred |
+| T6 | Add user authentication (if multi-user) | P2 | Product | Not started |
+| T7 | Stress test reel pipeline | P2 | Product | Not started |
+| T8 | Add scheduled posting to Instagram | P2 | Product | Not started |
+
+---
+
 ## Personas (Multi-Dimensional Operating Mode)
 
 When modifying this project, operate through all ten lenses simultaneously:
@@ -141,6 +192,9 @@ When modifying this project, operate through all ten lenses simultaneously:
 9. **Clarity-Driven Communicator** — ADRs for every major choice.
 10. **Inner-Self Guided Builder** — Build what is right, not easy.
 
+**Added persona (post-introspection):**
+11. **Product-First Builder** — The user wants Instagram posts, not research reports. Ship working software.
+
 ---
 
 ## Documentation Structure
@@ -148,23 +202,40 @@ When modifying this project, operate through all ten lenses simultaneously:
 ```
 docs/
 ├── research/
-│   ├── bfs/           # Breadth-first landscape mapping
-│   ├── dfs/           # Depth-first technology deep-dives
-│   └── bidirectional/ # Cross-domain impact analysis
-├── adrs/              # Architecture Decision Records (one per decision)
+│   ├── introspection.md           # Agent bias audit (projections of mental spaces)
+│   ├── roadmap.md                 # Where we're heading
+│   ├── bfs/                       # Breadth-first landscape mapping
+│   ├── dfs/                       # Depth-first technology deep-dives
+│   └── bidirectional/             # Cross-domain impact analysis
+├── plans/
+│   ├── PLAN-001-product.md        # Product roadmap (landing page, features)
+│   ├── PLAN-002-process.md        # Development process improvement
+│   └── PLAN-003-integrations.md   # PicoCloth + HIX integration research
+├── adrs/                          # Architecture Decision Records
 │   ├── ADR-001-architecture-for-sabrika-brand-manager.md
 │   ├── ADR-002-reel-template-architecture.md
 │   ├── ADR-003-frame-analysis-reel-engine.md
-│   └── ADR-004-devops-infrastructure.md
-├── operations/        # SRE runbooks, deployment procedures, incident response
-└── debugging/         # Root-cause analyses of production issues
+│   ├── ADR-004-devops-infrastructure.md
+│   └── ADR-005-self-healing-monitor.md
+├── operations/                    # SRE runbooks, deployment procedures
+├── debugging/                     # Root-cause analyses
+└── consciousness/                 # Daily agent evolution logs
+    ├── MANIFESTO.md
+    └── 2026-05-03.md
 
 scripts/
-├── deploy.sh                   # One-command deployment to Azure VM
-├── health-check.sh             # VM and application health monitoring
-├── logs.sh                     # Quick log access and tailing
-├── monitor.py                  # Self-healing monitor daemon
-└── sabrika-monitor.service     # systemd unit for monitor
+├── deploy.sh                      # One-command deployment
+├── health-check.sh                # Health monitoring
+├── logs.sh                        # Log access
+├── monitor.py                     # Self-healing monitor
+├── mission_monitor.py             # Mission-aware semantic probes
+├── sabrika-monitor.service        # systemd unit
+├── sabrika-dev.service            # Dev environment systemd unit
+└── sabrika-staging.service        # Staging environment systemd unit
+
+tests/
+├── conftest.py
+└── test_api.py
 ```
 
 ---
@@ -188,7 +259,7 @@ Claim about YOLOv8 latency [^1].
 - `reel_engine/`: Modular reel editing engine (V1 + V2)
 - `templates/`: Vanilla HTML/CSS/JS frontend (no build step)
 - `static/`: Generated content, logos, reels, thumbnails, uploads
-- `scripts/`: DevOps automation (deployment, health checks, log access)
+- `scripts/`: DevOps automation (deployment, health checks, log access, monitoring)
 
 ---
 
@@ -199,6 +270,8 @@ Claim about YOLOv8 latency [^1].
 - Do NOT commit code without updating deployment state in AGENTS.md.
 - Do NOT use unverified blog posts as primary citations.
 - Do NOT forget the app is **deployed** — local changes must be pushed to Azure VM.
+- **Do NOT assume platform scale without user confirmation.** Single-tenant is correct until told otherwise.
+- **Do NOT ignore PicoCloth or HIX.** These are integration requirements, not side notes.
 
 ---
 
@@ -211,6 +284,7 @@ All architectural and operational decisions must follow the **Research-First Cov
 3. **Every architectural decision requires an ADR.** `docs/adrs/ADR-###-{topic}.md`
 4. **The 10-Persona Filter applies to every change.**
 5. **Anti-patterns are architectural malpractice.** "Just use X, everyone does" / "We'll fix it in production" are instant violations.
+6. **Product-first override:** If research delays shipping a user-facing feature by more than a day, ship a prototype first, then research the production version.
 
 ---
 
@@ -223,10 +297,11 @@ When in doubt:
 4. Prefer event-driven over synchronous RPC for cross-service communication.
 5. **Prefer research-backed decisions over intuition.** Cite before you commit.
 6. **Deployment state is persistent memory.** If the app is deployed, AGENTS.md must say so.
+7. **User intent over agent projection.** When the user describes a need, do not reframe it into a different problem the agent knows how to solve.
 
 ---
 
-*Document version: 1.1*  
-*Established: 2026-05-02*  
-*Updated: 2026-05-03 (nginx + SSL + self-healing monitor)*  
+*Document version: 2.0*
+*Established: 2026-05-02*
+*Updated: 2026-05-05 (post-introspection correction)*
 *Deployment verified: sabrika-app-vm @ https://20.125.62.241*
